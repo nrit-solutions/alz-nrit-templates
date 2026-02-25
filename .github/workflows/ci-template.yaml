@@ -104,7 +104,7 @@ jobs:
           -input=false
 
       - name: Convert Plan to JSON
-        if: ${{ env.INFRACOST_API_KEY != '' }}
+        if: ${{ env.INFRACOST_API_KEY != '' || github.event_name == 'pull_request' }}
         run: |
           terraform \
           -chdir="${{inputs.root_module_folder_relative_path}}" \
@@ -133,25 +133,9 @@ jobs:
           path: /tmp/infracost.json
           behavior: update
 
-      - name: Update Pull Request
-        if: (success() || failure()) && github.event_name == 'pull_request'
-        uses: actions/github-script@v6
+      - name: Post Plan Summary Comment
+        if: github.event_name == 'pull_request'
+        uses: liatrio/terraform-change-pr-commenter@v1.10.0
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const output = `#### Terraform Plan 📖\`${{ steps.plan.outcome }}\`
-
-            <details><summary>Run details</summary>
-
-            The plan was a ${{ steps.plan.outcome }} see the action for more details.
-
-            </details>
-
-            *Pushed by: @${{ github.actor }}, Action: \`${{ github.event_name }}\`*`;
-
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: output
-            })
+          json-file: /tmp/tfplan.json
+          expand-comment: 'true'

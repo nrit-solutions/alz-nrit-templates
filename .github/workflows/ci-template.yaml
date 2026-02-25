@@ -73,6 +73,7 @@ jobs:
       ARM_TENANT_ID: "${{ vars.AZURE_TENANT_ID }}"
       ARM_USE_AZUREAD: true
       ARM_USE_OIDC: true
+      INFRACOST_API_KEY: ${{ secrets.INFRACOST_API_KEY }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -103,7 +104,7 @@ jobs:
           -input=false
 
       - name: Convert Plan to JSON
-        if: ${{ secrets.INFRACOST_API_KEY != '' }}
+        if: ${{ env.INFRACOST_API_KEY != '' }}
         run: |
           terraform \
           -chdir="${{inputs.root_module_folder_relative_path}}" \
@@ -112,13 +113,13 @@ jobs:
           tfplan > /tmp/tfplan.json
 
       - name: Setup Infracost
-        if: ${{ secrets.INFRACOST_API_KEY != '' }}
+        if: ${{ env.INFRACOST_API_KEY != '' }}
         uses: infracost/actions/setup@v3
         with:
           api-key: ${{ secrets.INFRACOST_API_KEY }}
 
       - name: Generate Infracost Cost Estimate
-        if: ${{ secrets.INFRACOST_API_KEY != '' }}
+        if: ${{ env.INFRACOST_API_KEY != '' }}
         run: |
           infracost breakdown \
           --path=/tmp/tfplan.json \
@@ -126,7 +127,7 @@ jobs:
           --out-file=/tmp/infracost.json
 
       - name: Post Infracost Comment
-        if: ${{ secrets.INFRACOST_API_KEY != '' && github.event_name == 'pull_request' }}
+        if: ${{ env.INFRACOST_API_KEY != '' && github.event_name == 'pull_request' }}
         uses: infracost/actions/comment@v1
         with:
           path: /tmp/infracost.json
